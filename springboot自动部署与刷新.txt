@@ -1,0 +1,19 @@
+自动部署
+
+为了让开发更加得心应手，我们进一步优化IDE，使得Web应用可以自动重启，页面内容修改时网页可以自动刷新，这可以极大地提高我们的开发体验和开发效率。
+
+为了让Spring Boot在需要重启时，能够自动进行，我们只需要在POM文件中增加以下依赖。
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-devtools</artifactId>
+    </dependency>
+ </dependencies>
+增加了这段依赖之后，可以实验以下。比如，我们修改以下BlogApplication.java的代码，可以看到控制台中，内嵌的Web服务器自动重启了。
+
+浏览器自动刷新
+
+我们在修改代码之后，一般情况下都是重新回到浏览器中，通过鼠标操作或者通过F5对页面进行刷新。这种操作虽然时间很短，但是无数次的出现依然会占用我们很多时间。我们可以通过给浏览器安装livereload插件，这样就可以解放F5键了。以后只要有代码修改，切回浏览器就能马上看到效果了。
+
+访问http://livereload.com/extensions/，根据自己的浏览器类型，下载响应的插件扩展程序即可。
