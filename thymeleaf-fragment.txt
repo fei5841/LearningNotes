@@ -1,0 +1,38 @@
+关于thymeleaf th:replace th:include th:insert 的区别:
+
+th:insert   ：保留自己的主标签，保留th:fragment的主标签。
+
+th:replace ：不要自己的主标签，保留th:fragment的主标签。
+
+th:include ：保留自己的主标签，不要th:fragment的主标签。（官方3.0后不推荐）
+
+
+需要替换的片段内容：  
+<footer th:fragment="copy">  
+   <script type="text/javascript" th:src="@{/plugins/jquery/jquery-3.0.2.js}"></script>  
+</footer>  
+  
+导入片段：  
+  
+  <div th:insert="footer :: copy"></div>  
+  
+  <div th:replace="footer :: copy"></div>  
+  
+  <div th:include="footer :: copy"></div>  
+    
+  
+结果为：  
+  
+<div>  
+    <footer>  
+       <script type="text/javascript" th:src="@{/plugins/jquery/jquery-3.0.2.js}"></script>  
+    </footer>    
+</div>    
+  
+<footer>  
+  <script type="text/javascript" th:src="@{/plugins/jquery/jquery-3.0.2.js}"></script>  
+</footer>    
+  
+<div>  
+  <script type="text/javascript" th:src="@{/plugins/jquery/jquery-3.0.2.js}"></script>  
+</div> 
