@@ -1,0 +1,27 @@
+1. KILL掉系统里的MySQL进程；
+2. 在命令提示符下(CMD),进入到MYSQL的BIN目录,用以下命令启动MySQL，以不检查权限的方式启动；
+mysqld-nt --skip-grant-tables
+3. 然后重新开打一个命令提示符的窗口(CMD)用空密码方式使用root用户登录 MySQL；
+mysql -u root
+4. 修改root用户的密码；
+mysql> update mysql.user set password=PASSWORD('新密码') where User='root';
+mysql> flush privileges;
+mysql> quit
+5. 重新启动计算机，就可以使用新密码登录了。 
+
+破解本地Mysql密码Windows:
+1.用系统管理员登陆系统。
+2.停止MySQL的服务。
+3.进入命令窗口，然后进入MySQL的安装目录，比如我的安装目录是c:\mysql,进入C:\mysql\bin
+4.跳过权限检查启动MySQL，
+c:\mysql\bin>mysqld-nt --skip-grant-tables
+5.重新打开一个窗口，进入c:\mysql\bin目录，设置root的新密码
+c:\mysql\bin>mysqladmin -u root flush-privileges password "newpassword"
+c:\mysql\bin>mysqladmin -u root -p shutdown
+将newpassword替换为你要用的root的密码，第二个命令会提示你输入新密码，重复第一个命令输入的密码。
+6.停止MySQL Server，用正常模式启动Mysql
+7．你可以用新的密码链接到Mysql了。 Unix&Linux：
+1.用root或者运行mysqld的用户登录系统；
+2．利用kill命令结束掉mysqld的进程；
+3．使用--skip-grant-tables参数启动MySQL Server
+shell>mysqld_safe --skip-grant-tables &4.为root@localhost设置新密码
