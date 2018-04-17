@@ -1,0 +1,54 @@
+对象的owner将权限赋予某个用户(如:testuser1)
+
+grant select ,update on bd_corp to testuser1 [with grant option ]
+1.如果带了 with grant option 
+那么用户testuser1可以将select ,update权限传递给其他用户( 如testuser2)
+grant select,update on bd_corp to testuser2
+2.如果没带with grant option
+  那么用户testuser1不能给testuser2授权
+
+简单的说就是将权限传递给第三方
+
+~~~~~~~~~~~~~~~~~~~~
+
+~~~~~~~~~~~~~~~~~~~~
+
+授权表使用举例 
+
+grant用于给增加用户和创建权限，revoke用于删除用户权限。 
+
+下面是一些用grant增加用户和创建权限的例子： 
+
+mysql> grant all privileges on *.* to test@localhost identified by 'test' with grant option; 
+
+这句增加一个本地具有所有权限的test用户（超级用户），密码是test。ON子句中的*.*意味着"所有数据库、所有表"。with grant option表示它具有grant权限。 
+
+mysql> grant select,insert,update,delete,create,drop privileges on test.* to test1@'192.168.1.0/255.255.255.0' identified by 'test'; 
+
+这句是增加了一个test1用户，口令是test，但是它只能从C类子网192.168.1连接，对test库有select,insert,update,delete,create,drop操作权限。 
+
+用grant语句创建权限是不需要再手工刷新授权表的，因为它已经自动刷新了。 
+
+给用户创建权限还可以通过直接修改授权表： 
+
+mysql> insert into user 
+
+values("localhost","test",password("test"),"Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y","Y"); 
+
+mysql> flush privileges; 
+
+这两句和上面第一句grant的效果是一样的，也是增加了一个本地的test超级用户。我们看到用grant方便多了，而且还不需flush privileges。 
+
+mysql> insert into user (host,user,password) values("192.168.1.0/255.255.255.0","test1",PASSWORD("test")); mysql> insert into db values("192.168.1.0/255.255.255.0","test","test1","Y","Y","Y","Y","Y","Y","N","N","N","N") mysql> flush privileges; 
+
+这三句和上面第二句grant的效果也是一样的，也是增加了一个只能从C类子网192.168.1连接，对test库有select,insert,update,delete,create,drop操作权限的test1用户，口令是test。要取消一个用户的权限，使用revoke语句。revoke的语法非常类似于grant语句，除了to用from取代并且没有identified by和with grant option子句，下面是用revoke删除用户权限的例子： 
+
+mysql> revoke all on test.* from test1@'192.168.1.0/255.255.255.0'; 
+
+这句revoke就撤消了上面第二句grant创建的权限，但是test1用户并没有被删除，必须手工从user表删除： 
+
+mysql> delete from user where user='test1'; 
+
+mysql> flush privileges; 
+
+这样，test1用户就彻底删除了。
