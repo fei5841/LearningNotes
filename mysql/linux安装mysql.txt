@@ -41,5 +41,7 @@ set global validate_password_length=1;
 ALTER USER 'root'@'localhost' IDENTIFIED BY 'admin';
 成功。
 
+yum -y remove mysql57-community-release-el7-10.noarch
+
 查看密码验证信息：
 show variables like 'validate_password%';
