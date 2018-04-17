@@ -1,0 +1,7 @@
+1.错误：org.apache.maven.archiver.MavenArchiver.getManifest(org.apache.maven.project.MavenProject, org.apache.maven.archiver.MavenArchiveConfiguration) 
+pom.xml
+
+解决方法：
+Help > Install New Software..
+
+http://repo1.maven.org/maven2/.m2e/connectors/m2eclipse-mavenarchiver/0.17.2/N/LATEST/

@@ -1,0 +1,647 @@
+目的
+
+  1、枚举值转换成完全的json；
+
+  2、对象中的枚举成员完全转换成json；
+
+  3、枚举类的全部值转换成json；
+
+ 
+
+枚举定义
+
+public enum SongsEnum {
+     SAFE_AND_SOUND(1,"Taylor Swift","Safe&Sound","2011-12-26")
+    ,SHAKE_IT_OFF(2,"Taylor Swift","Shake It Off","2014-08-19")
+    ,STYLE(3,"Taylor Swift","Style","2015-02-09")
+    ,SOUND_OF_SILENCE(4,"Simon & Garfunkel","The Sound Of Silence","1966-01-17")
+    ,BETTER_MAN(5,"Little Big Town","Better Man","2016-10-20")
+    ,YESTERDAY_ONCE_MORE(6,"Carpenters","Yesterday Once More","1973-05-16")
+    ;
+
+    public final int index;
+    public final String singer;
+    public final String name;
+    public final String date;
+
+    private SongsEnum(int seq, String singer, String name, String date) {
+        this.index = seq;
+        this.singer = singer;
+        this.name = name;
+        this.date = date;
+    }
+
+    public int getIndex() { return index; }
+
+    public String getSinger() { return singer; }
+
+    public String getName() { return name; }
+
+    public String getDate() { return date; }
+}
+ 
+
+一、枚举值转换json
+
+期望结果：SongsEnum.SAFE_AND_SOUND -> {"date":"2011-12-26","index":1,"name":"Safe&Sound","singer":"Taylor Swift"}
+
+## 默认调用结果
+JSON.toJSONString(SongsEnum.SAFE_AND_SOUND) -> "SAFE_AND_SOUND"
+
+JSON.toJSONString(SongsEnum.BETTER_MAN,SerializerFeature.WriteEnumUsingName) -> "BETTER_MAN"
+
+JSON.toJSONString(SongsEnum.STYLE,SerializerFeature.WriteEnumUsingToString) -> "STYLE"
+默认的使用fastjson转换enum,那么得到的enum json可能不是想要的.
+
+(1) 重写enum的toString()
+
+@Override
+public String toString() {
+  return "{'name':"+this.name+",'singer':"+this.singer+"}";
+}
+
+JSON.toJSONString(SongsEnum.STYLE,SerializerFeature.WriteEnumUsingToString) -> "{'name':Style,'singer':Taylor Swift}"
+  虽然可以这样得到想要的结果,但相对来说太麻烦,每个enum类都要从写toString().
+
+  (此种方式并没有研究，所以以上重写toString()的代码可能存在问题)
+
+(2) fastjson的config设置
+
+  fastjson提供的JSON.toJSONString(...)有很多重载的方法，例如：
+
+    public static String toJSONString(Object object, SerializeConfig config, SerializerFeature... features)
+
+  所以，fastjson可以通过设置SerializeConfig来配置enum的序列化。
+
+ 
+public static void main(String[] args) {
+    SerializeConfig config = new SerializeConfig();
+    config.configEnumAsJavaBean(SongsEnum.class);
+    String s = JSON.toJSONString(SongsEnum.SOUND_OF_SILENCE, config);
+    System.out.println(s);
+    // {"date":"1966-01-17","index":4,"name":"The Sound Of Silence","singer":"Simon & Garfunkel"}
+}
+
+二、对象中的枚举成员完全转换成json
+
+
+public enum StatusEnum {
+    STATUS_A(0,"状态A"),
+    STATUS_B(1,"状态B"),
+    STATUS_C(2,"状态C");
+
+    public final int index;
+    public final String status;
+
+    StatusEnum(int i, String status) {
+        this.index = i;
+        this.status = status;
+    }
+
+    public int getIndex() { return index; }
+
+    public String getStatus() { return status; }
+}
+
+
+class JavaBean{
+    private String name;
+
+    private SongsEnum song;
+
+    private StatusEnum status;
+
+    public JavaBean(String name,SongsEnum song,StatusEnum status){
+        this.name = name;
+        this.song = song;
+        this.status = status;
+    }
+
+    //省略setter/getter
+}
+
+期望: {"name":"vegilyn","song":{"date":"2014-08-19","index":2,"name":"Shake It Off","singer":"Taylor Swift"},"status":{"index":1,"status":"状态B"}}
+
+默认结果:
+
+JSON.toJSONString(new JavaBean("vegilyn",SongsEnum.SHAKE_IT_OFF,StatusEnum.STATUS_B)) -> {"name":"vegilyn","song":"SHAKE_IT_OFF","status":"STATUS_B"}
+可以看出此结果和目的1中的结果一样的，所以通过目的1的方式也可以解决。
+
+SerializeConfig config = new SerializeConfig();
+config.configEnumAsJavaBean(SongsEnum.class); // 配置enum转换
+String s = JSON.toJSONString(new JavaBean("vegilyn",SongsEnum.SHAKE_IT_OFF,StatusEnum.STATUS_B),config);
+System.out.println(s);
+// {"name":"vegilyn","song":{"date":"2014-08-19","index":2,"name":"Shake It Off","singer":"Taylor Swift"},"status":"STATUS_B"}
+SerializeConfig config = new SerializeConfig();
+config.configEnumAsJavaBean(SongsEnum.class,StatusEnum.class); // 配置enum转换 
+String s = JSON.toJSONString(new JavaBean("vegilyn",SongsEnum.SHAKE_IT_OFF,StatusEnum.STATUS_B),config);
+System.out.println(s);
+// {"name":"vegilyn","song":{"date":"2014-08-19","index":2,"name":"Shake It Off","singer":"Taylor Swift"},"status":{"index":1,"status":"状态B"}}
+特别枚举数组转换的json：(注意重复值的json值)
+
+
+public static void main(String[] args) {
+    SongsEnum[] songsEnums = {SongsEnum.BETTER_MAN, SongsEnum.SAFE_AND_SOUND, SongsEnum.BETTER_MAN};
+    SerializeConfig config = new SerializeConfig();
+    config.configEnumAsJavaBean(SongsEnum.class);
+
+    System.out.println(JSON.toJSONString(songsEnums,config));
+}
+
+// [{"date":"2016-10-20","index":5,"name":"Better Man","singer":"Little Big Town"},{"date":"2011-12-26","index":1,"name":"Safe&Sound","singer":"Taylor Swift"},{"$ref":"$[0]"}]
+
+ 
+
+三、枚举类的全部值转换成json
+
+期望结果：
+
+
+[
+    {"index": 1, "singer": "Taylor Swift", "name": "Safe&Sound", "date": "2011-12-26"},
+    {"index": 2, "singer": "Taylor Swift", "name": "Shake It Off", "date": "2014-08-19"},
+    {"index": 3, "singer": "Taylor Swift", "name": "Style", "date": "2015-02-09"},
+    {"index": 4, "singer": "Simon & Garfunkel", "name": "The Sound Of Silence", "date": "1966-01-17"},
+    {"index": 5, "singer": "Little Big Town", "name": "Better Man", "date": "2016-10-20"},
+    {"index": 6, "singer": "Carpenters", "name": "Yesterday Once More", "date": "1973-05-16"}
+]
+
+实现代码：
+
+
+ public static void main(String[] args) {
+        SongsEnum[] values = SongsEnum.values();
+        List<SongsEnum> songsEnums = new ArrayList<SongsEnum>();
+        for (SongsEnum value : values) {
+            songsEnums.add(value);
+        }
+
+        SerializeConfig config = new SerializeConfig();
+        config.configEnumAsJavaBean(SongsEnum.class);
+
+        System.out.println(JSON.toJSONString(songsEnums, config));
+    }
+
+以上能达到想要的效果，但是，每个enum类都要重复写以上代码。所以，利用反射来写一个公共的方法。
+
+
+ public static String toJson(Class<? extends Enum> enumClass) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        Method methodValues = enumClass.getMethod("values");
+        Object invoke = methodValues.invoke(null);
+        int length = java.lang.reflect.Array.getLength(invoke);
+        List<Object> values = new ArrayList<Object>();
+        for (int i=0; i<length; i++) {
+            values.add(java.lang.reflect.Array.get(invoke, i));
+        }
+
+        SerializeConfig config = new SerializeConfig();
+        config.configEnumAsJavaBean(enumClass);
+
+        return JSON.toJSONString(values,config);
+    }
+
+
+public static void main(String[] args) {
+        try {
+            System.out.println(EnumJsonUtil.toJson(StatusEnum.class));
+            // [{"index":0,"status":"状态A"},{"index":1,"status":"状态B"},{"index":2,"status":"状态C"}]
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+ 
+
+四、扩展：fastjson如何得到enum的field定义。
+
+通过jdk反射机制得到的field。
+
+
+public static void main(String[] args) {
+  Field[] fields = SongsEnum.class.getFields();
+  for (Field field : fields) {
+    System.out.println(field.getName());
+  }
+}
+
+SAFE_AND_SOUND
+SHAKE_IT_OFF
+STYLE
+SOUND_OF_SILENCE
+BETTER_MAN
+YESTERDAY_ONCE_MORE
+index
+singer
+name
+date
+
+如上，如果是通过jdk反射机制得到class的filed。会发现得到了不想要的结果，ex: SAFE_AND_SOUND 、SHAKE_IT_OFF 等。
+
+想得到的field其实只想要: index、singer、name、date。
+
+当然也可以自己分析，然后过滤出自己想要的class的field。
+
+但下面看下fastjson中怎么得到enum中期望的field。(fastjson版本：1.2.31)
+
+(1) 跟踪代码:  new SerializeConfig().configEnumAsJavaBean(enumClass)
+
+public void configEnumAsJavaBean(Class<? extends Enum>... enumClasses) {
+        for (Class<? extends Enum> enumClass : enumClasses) {
+            put(enumClass, createJavaBeanSerializer(enumClass));
+        }
+    }
+
+ private final ObjectSerializer createJavaBeanSerializer(Class<?> clazz) {
+        SerializeBeanInfo beanInfo = TypeUtils.buildBeanInfo(clazz, null, propertyNamingStrategy, fieldBase);
+        if (beanInfo.fields.length == 0 && Iterable.class.isAssignableFrom(clazz)) {
+            return MiscCodec.instance;
+        }
+
+        return createJavaBeanSerializer(beanInfo);
+    }
+
+ 
+public class SerializeBeanInfo {
+
+    protected final Class<?> beanType;
+    protected final String   typeName;
+    protected final JSONType jsonType;
+
+    protected final FieldInfo[] fields;
+    protected final FieldInfo[] sortedFields;
+
+    protected int               features;
+
+    public SerializeBeanInfo(Class<?> beanType, //
+                             JSONType jsonType, //
+                             String typeName, //
+                             int features,
+                             FieldInfo[] fields, //
+                             FieldInfo[] sortedFields
+                             ){
+        this.beanType = beanType;
+        this.jsonType = jsonType;
+        this.typeName = typeName;
+        this.features = features;
+        this.fields = fields;
+        this.sortedFields = sortedFields;
+    }
+
+}
+
+可以看到SerializeBeanInfo 中定义的有 fields 。
+
+(很好奇为什么定义成 protected , TyoeUtils.buildBeanInfo(...)是public的,返回的SerializeBeanInfo 也是public。
+
+但是，SerializeBeanInfo. fields却是protected 的。
+
+导致我知道fastjson中有这么一个util方法，可以得到我想要的enum信息（更确切的是可以得到class的信息）。
+
+但是，最后我并不能直接在我的代码中使用SerializeBeanInfo。)。
+
+通过debug可以看到SerializeBeanInfo对象的属性，就是我想要的结果。
+
+image
+
+接着进去看TyoeUtils.buildBeanInfo(...)的实现：
+
+
+   public static SerializeBeanInfo buildBeanInfo(Class<?> beanType //
+            , Map<String, String> aliasMap //
+            , PropertyNamingStrategy propertyNamingStrategy //
+            , boolean fieldBased //
+    ) {
+
+        JSONType jsonType = beanType.getAnnotation(JSONType.class);
+
+        // fieldName,field ，先生成fieldName的快照，减少之后的findField的轮询
+         Map<String, Field> fieldCacheMap = new HashMap<String, Field>();
+        ParserConfig.parserAllFieldToCache(beanType, fieldCacheMap);
+
+        List<FieldInfo> fieldInfoList = fieldBased
+                ? computeGettersWithFieldBase(beanType, aliasMap, false, propertyNamingStrategy) //
+                : computeGetters(beanType, jsonType, aliasMap, fieldCacheMap, false, propertyNamingStrategy);
+
+    // 省略...
+
+}
+
+执行computeGetters(...)的结果：
+
+image
+
+
+ public static List<FieldInfo> computeGetters(Class<?> clazz, //
+                                                 JSONType jsonType, //
+                                                 Map<String, String> aliasMap, //
+                                                 Map<String, Field> fieldCacheMap, //
+                                                 boolean sorted, //
+                                                 PropertyNamingStrategy propertyNamingStrategy //
+    ) {
+        Map<String, FieldInfo> fieldInfoMap = new LinkedHashMap<String, FieldInfo>();
+
+        for (Method method : clazz.getMethods()) {
+            String methodName = method.getName();
+            int ordinal = 0, serialzeFeatures = 0, parserFeatures = 0;
+            String label = null;
+
+            if (Modifier.isStatic(method.getModifiers())) { continue; }  // 跳过static method
+
+            if (method.getReturnType().equals(Void.TYPE)) { continue; }
+
+            if (method.getParameterTypes().length != 0) { continue; }
+
+            if (method.getReturnType() == ClassLoader.class) { continue; }
+
+            if (method.getName().equals("getMetaClass")
+                && method.getReturnType().getName().equals("groovy.lang.MetaClass")) {
+                continue;
+            }
+
+            JSONField annotation = method.getAnnotation(JSONField.class);
+
+            if (annotation == null) {
+                annotation = getSuperMethodAnnotation(clazz, method);
+            }
+
+            if (annotation != null) {
+                if (!annotation.serialize()) { continue; }
+
+                ordinal = annotation.ordinal();
+                serialzeFeatures = SerializerFeature.of(annotation.serialzeFeatures());
+                parserFeatures = Feature.of(annotation.parseFeatures());
+
+                if (annotation.name().length() != 0) {
+                    String propertyName = annotation.name();
+
+                    if (aliasMap != null) {
+                        propertyName = aliasMap.get(propertyName);
+                        if (propertyName == null) {
+                            continue;
+                        }
+                    }
+
+                    FieldInfo fieldInfo = new FieldInfo(propertyName, method, null, clazz, null, ordinal,
+                                                        serialzeFeatures, parserFeatures, annotation, null, label);
+                    fieldInfoMap.put(propertyName, fieldInfo);
+                    continue;
+                }
+
+                if (annotation.label().length() != 0) {
+                    label = annotation.label();
+                }
+            }
+
+            if (methodName.startsWith("get")) {
+                if (methodName.length() < 4) { continue; }
+
+                if (methodName.equals("getClass")) { continue;}
+
+                if (methodName.equals("getDeclaringClass") && clazz.isEnum()) { continue; }
+
+                char c3 = methodName.charAt(3);
+
+                String propertyName;
+                if (Character.isUpperCase(c3) //
+                    || c3 > 512 // for unicode method name
+                ) {
+                   if (compatibleWithJavaBean) {
+                        propertyName = decapitalize(methodName.substring(3));
+                    } else {
+                        propertyName = Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
+                    }
+                    propertyName = getPropertyNameByCompatibleFieldName(fieldCacheMap, methodName,  propertyName,3);
+                } else if (c3 == '_') {
+                    propertyName = methodName.substring(4);
+                } else if (c3 == 'f') {
+                    propertyName = methodName.substring(3);
+                } else if (methodName.length() >= 5 && Character.isUpperCase(methodName.charAt(4))) {
+                    propertyName = decapitalize(methodName.substring(3));
+                } else {
+                    continue;
+                }
+
+                boolean ignore = isJSONTypeIgnore(clazz, propertyName);
+
+                if (ignore) {
+                    continue;
+                }
+                //假如bean的field很多的情况一下，轮询时将大大降低效率
+                Field field = ParserConfig.getFieldFromCache(propertyName, fieldCacheMap);
+
+                if (field == null && propertyName.length() > 1) {
+                    char ch = propertyName.charAt(1);
+                    if (ch >= 'A' && ch <= 'Z') {
+                        String javaBeanCompatiblePropertyName = decapitalize(methodName.substring(3));
+                        field = ParserConfig.getFieldFromCache(javaBeanCompatiblePropertyName, fieldCacheMap);
+                    }
+                }
+
+                JSONField fieldAnnotation = null;
+                if (field != null) {
+                    fieldAnnotation = field.getAnnotation(JSONField.class);
+
+                    if (fieldAnnotation != null) {
+                        if (!fieldAnnotation.serialize()) {
+                            continue;
+                        }
+
+                        ordinal = fieldAnnotation.ordinal();
+                        serialzeFeatures = SerializerFeature.of(fieldAnnotation.serialzeFeatures());
+                        parserFeatures = Feature.of(fieldAnnotation.parseFeatures());
+
+                        if (fieldAnnotation.name().length() != 0) {
+                            propertyName = fieldAnnotation.name();
+
+                            if (aliasMap != null) {
+                                propertyName = aliasMap.get(propertyName);
+                                if (propertyName == null) {
+                                    continue;
+                                }
+                            }
+                        }
+
+                        if (fieldAnnotation.label().length() != 0) {
+                            label = fieldAnnotation.label();
+                        }
+                    }
+                }
+
+                if (aliasMap != null) {
+                    propertyName = aliasMap.get(propertyName);
+                    if (propertyName == null) {
+                        continue;
+                    }
+                }
+
+                if (propertyNamingStrategy != null) {
+                    propertyName = propertyNamingStrategy.translate(propertyName);
+                }
+
+                FieldInfo fieldInfo = new FieldInfo(propertyName, method, field, clazz, null, ordinal, serialzeFeatures, parserFeatures,
+                                                    annotation, fieldAnnotation, label);
+                fieldInfoMap.put(propertyName, fieldInfo);
+            }
+
+            if (methodName.startsWith("is")) {
+                if (methodName.length() < 3) {
+                    continue;
+                }
+
+                if (method.getReturnType() != Boolean.TYPE
+                        && method.getReturnType() != Boolean.class) {
+                    continue;
+                }
+
+                char c2 = methodName.charAt(2);
+
+                String propertyName;
+                if (Character.isUpperCase(c2)) {
+                    if (compatibleWithJavaBean) {
+                        propertyName = decapitalize(methodName.substring(2));
+                    } else {
+                        propertyName = Character.toLowerCase(methodName.charAt(2)) + methodName.substring(3);
+                    }
+                    propertyName = getPropertyNameByCompatibleFieldName(fieldCacheMap, methodName,  propertyName,2);
+                } else if (c2 == '_') {
+                    propertyName = methodName.substring(3);
+                } else if (c2 == 'f') {
+                    propertyName = methodName.substring(2);
+                } else {
+                    continue;
+                }
+
+                Field field = ParserConfig.getFieldFromCache(propertyName,fieldCacheMap);
+
+                if (field == null) {
+                    field = ParserConfig.getFieldFromCache(methodName,fieldCacheMap);
+                }
+
+                JSONField fieldAnnotation = null;
+                if (field != null) {
+                    fieldAnnotation = field.getAnnotation(JSONField.class);
+
+                    if (fieldAnnotation != null) {
+                        if (!fieldAnnotation.serialize()) {
+                            continue;
+                        }
+
+                        ordinal = fieldAnnotation.ordinal();
+                        serialzeFeatures = SerializerFeature.of(fieldAnnotation.serialzeFeatures());
+                        parserFeatures = Feature.of(fieldAnnotation.parseFeatures());
+
+                        if (fieldAnnotation.name().length() != 0) {
+                            propertyName = fieldAnnotation.name();
+
+                            if (aliasMap != null) {
+                                propertyName = aliasMap.get(propertyName);
+                                if (propertyName == null) {
+                                    continue;
+                                }
+                            }
+                        }
+
+                        if (fieldAnnotation.label().length() != 0) {
+                            label = fieldAnnotation.label();
+                        }
+                    }
+                }
+
+                if (aliasMap != null) {
+                    propertyName = aliasMap.get(propertyName);
+                    if (propertyName == null) {
+                        continue;
+                    }
+                }
+
+                if (propertyNamingStrategy != null) {
+                    propertyName = propertyNamingStrategy.translate(propertyName);
+                }
+
+                //优先选择get
+                if (fieldInfoMap.containsKey(propertyName)) {
+                    continue;
+                }
+
+                FieldInfo fieldInfo = new FieldInfo(propertyName, method, field, clazz, null, ordinal, serialzeFeatures, parserFeatures,
+                                                    annotation, fieldAnnotation, label);
+                fieldInfoMap.put(propertyName, fieldInfo);
+            }
+        } // for methods end
+        // for methods ： 优先通过定义的method来获取FieldInfo。
+        // 然后，才通过Fields得到没有定义类似getXXX的field。
+        Field[] fields = clazz.getFields();
+        computeFields(clazz, aliasMap, propertyNamingStrategy, fieldInfoMap, fields);
+
+        return getFieldInfos(clazz, sorted, fieldInfoMap);
+    }
+
+如果枚举中的: index、singer、name、date。没有定义getter方法，那么fieldInfoMap在for methods end之后是empty的。
+
+并且经过测试发现, 如果class中定义了:  public final static String testName = "test";
+只有提供了 : public String getTestName(){return testName;} 才会被fastjson转换。注：不能是public static方法。（原因看上面的源码）
+
+或者 定义成 public final String testName = "test"; (但明显没有static的含义所在，原因看下面源码)
+
+ 
+
+
+private static void computeFields(
+            Class<?> clazz, //
+            Map<String, String> aliasMap, //
+            PropertyNamingStrategy propertyNamingStrategy, //
+            Map<String, FieldInfo> fieldInfoMap, //
+            Field[] fields) {
+
+        for (Field field : fields) {
+            if (Modifier.isStatic(field.getModifiers())) { // 如果是static 修饰的field 跳过。
+                continue;
+            }
+
+            JSONField fieldAnnotation = field.getAnnotation(JSONField.class); // fastjson提供的注解
+
+            int ordinal = 0, serialzeFeatures = 0, parserFeatures = 0;
+            String propertyName = field.getName();
+            String label = null;
+            if (fieldAnnotation != null) {
+                if (!fieldAnnotation.serialize()) {
+                    continue;
+                }
+
+                ordinal = fieldAnnotation.ordinal();
+                serialzeFeatures = SerializerFeature.of(fieldAnnotation.serialzeFeatures());
+                parserFeatures = Feature.of(fieldAnnotation.parseFeatures());
+
+                if (fieldAnnotation.name().length() != 0) {
+                    propertyName = fieldAnnotation.name();
+                }
+
+                if (fieldAnnotation.label().length() != 0) {
+                    label = fieldAnnotation.label();
+                }
+            }
+
+            if (aliasMap != null) { // 别名定义
+                propertyName = aliasMap.get(propertyName);
+                if (propertyName == null) {
+                    continue;
+                }
+            }
+
+            if (propertyNamingStrategy != null) {
+                propertyName = propertyNamingStrategy.translate(propertyName);
+            }
+
+            if (!fieldInfoMap.containsKey(propertyName)) {// map中不存在该field的FieldInfo, 则创建一个
+                FieldInfo fieldInfo = new FieldInfo(propertyName, null, field, clazz, null, ordinal, serialzeFeatures, parserFeatures,
+                                                    null, fieldAnnotation, label);
+                fieldInfoMap.put(propertyName, fieldInfo);
+            }
+        }
+    }
+
+所以，根据枚举的特性。ex: SAFE_AND_SOUND 、SHAKE_IT_OFF 等。在enum中的定义都是 public static final ...
