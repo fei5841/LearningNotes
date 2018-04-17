@@ -9,11 +9,10 @@
 (1)修改my.ini（my.cnf）文件
 
 log-bin=mysql-bin
-server-id=2
+server_id=1
 binlog-ignore-db=information_schema
 binlog-ignore-db=cluster
 binlog-ignore-db=mysql
-binlog-do-db=test
 
 这里的server-id用于标识唯一的数据库，这里设置为2，在设置从库的时候就需要设置为其他值。
 
@@ -55,40 +54,10 @@ mysql> show master status;
 
 (1)从库的配置，首先也是修改配置文件：/etc/my.cnf 如下：
 
-log-bin=mysql-bin
-server-id=3
-binlog-ignore-db=information_schema
-binlog-ignore-db=cluster
-binlog-ignore-db=mysql
-replicate-do-db=ufind_db
-replicate-ignore-db=mysql
-log-slave-updates
-slave-skip-errors=all
-slave-net-timeout=60
+server_id=2
+read_only=1
 
-(2)在MySQL5.6之后的版本中没有指定：
-
-master-host=192.168.1.1 #Master的主机IP
-master-user=root
-master-password=mysql password #Master的MySQL密码
-
-如果，你在MySQL5.6和之后的版本中配置从库的时候，设置到了上边的内容，即指定了master-host、master-user等信息的话，重启MySQL的时候就回报错，错误信息如下：
-
-[root@VM_128_194_centos bin]# service mysqld restart
-Shutting down MySQL... SUCCESS! 
-Starting MySQL... ERROR! The server quit without updating PID file (/data/mysqldb/VM_128_194_centos.pid).
-[root@VM_128_194_centos bin]# 
-
-此时，查看数据库的报错信息（数据库的目录, /data/mysqldb/VM_128_194_centos.err ），可以看到：
-
-2016-05-06 13:12:04 13345 [Note] InnoDB: Waiting for purge to start
-2016-05-06 13:12:04 13345 [Note] InnoDB: 5.6.27 started; log sequence number 2850211
-2016-05-06 13:12:04 13345 [ERROR] /data/home/server/mysql-5.6.27/bin/mysqld: unknown variable 'master-host=192.168.1.1'
-2016-05-06 13:12:04 13345 [ERROR] Aborting
-
-可以看出master-host 被检测数是一个未知的变量，因此会出现错误。
-
-(3)在5.6以及后续版本的配置如下：
+(2)在5.6以及后续版本的配置如下：
 
 修改完/etc/my.cnf 文件之后，重启一下MySQL（service mysqld restart）
 

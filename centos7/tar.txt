@@ -1,0 +1,2 @@
+解压jdk到指定文件夹
+tar -xzvf file.tar.gz -C /usr/local/java
