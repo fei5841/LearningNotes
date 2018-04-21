@@ -1,0 +1,15 @@
+版本2.0.0.M8：
+
+server端口只能是默认的8761，无法更改。
+
+application.xml:
+
+spring.application.name=mycloud-server
+
+server.port=8761
+eureka.instance.hostname=localhost
+eureka.instance.prefer-ip-address=true
+
+eureka.client.register-with-eureka=false
+eureka.client.fetch-registry=false
+eureka.client.service-url.default-zone=http://${eureka.instance.hostname}:${server.port}/eureka/
