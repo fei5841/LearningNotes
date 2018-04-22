@@ -1,0 +1,63 @@
+一、Spring Cloud中，如何使用Feign构造多参数的请求
+
+1.GET请求多参数的URL
+
+假设我们请求的URL包含多个参数，例如http://microservice-provider-user/get?id=1&username=张三 ，要怎么办呢？
+
+我们知道Spring Cloud为Feign添加了Spring MVC的注解支持，那么我们不妨按照Spring MVC的写法尝试一下：
+
+@FeignClient("microservice-provider-user")
+public interface UserFeignClient {
+  @RequestMapping(value = "/get", method = RequestMethod.GET)
+  public User get0(User user);
+}
+
+然而我们测试时会发现该写法不正确，我们将会收到类似以下的异常：
+
+feign.FeignException: status 405 reading UserFeignClient#get0(User); content:
+{"timestamp":1482676142940,"status":405,"error":"Method Not Allowed","exception":"org.springframework.web.HttpRequestMethodNotSupportedException","message":"Request method 'POST' not supported","path":"/get"}
+
+由异常可知，尽管指定了GET方法，Feign依然会发送POST请求。
+
+正确写法如下：
+
+(1) 方法一
+
+@FeignClient(name = "microservice-provider-user")
+public interface UserFeignClient {
+  @RequestMapping(value = "/get", method = RequestMethod.GET)
+  public User get1(@RequestParam("id") Long id, @RequestParam("username") String username);
+}
+
+这是最为直观的方式，URL有几个参数，Feign接口中的方法就有几个参数。使用@RequestParam注解指定请求的参数是什么。
+
+(2) 方法二
+
+@FeignClient(name = "microservice-provider-user")
+public interface UserFeignClient {
+  @RequestMapping(value = "/get", method = RequestMethod.GET)
+  public User get2(@RequestParam Map<String, Object> map);
+}
+
+多参数的URL也可以使用Map去构建。当目标URL参数非常多的时候，可使用这种方式简化Feign接口的编写。
+
+2.POST请求包含多个参数
+
+下面我们来讨论如何使用Feign构造包含多个参数的POST请求。举个例子，假设我们的用户微服务的Controller是这样编写的：
+(使用对象传递参数，那传入的参数会默认放在RequesBody中，所以在接收的地方需要使用@RequestBody来解析)
+
+@RestController
+public class UserController {
+  @PostMapping("/post")
+  public User post(@RequestBody User user) {
+    ...
+  }
+}
+
+我们的Feign接口要如何编写呢？答案非常简单，示例：
+
+@FeignClient(name = "microservice-provider-user")
+public interface UserFeignClient {
+  @RequestMapping(value = "/post", method = RequestMethod.POST)
+  public User post(@RequestBody User user);
+}

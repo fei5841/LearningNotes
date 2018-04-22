@@ -1,0 +1,46 @@
+1.ribbon加入Hystrix支持
+
+(1)引入jar:
+<dependency>
+	<groupId>org.springframework.cloud</groupId>
+	<artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+</dependency>
+
+(2)在Application.run类中开启注解@EnableHystrix
+
+(3)在Service中的方法上加入注解@HystrixCommand，例如：
+
+@HystrixCommand(fallbackMethod="hiError",defaultFallback="hiError1")
+public String helloService(String name) {
+	return restTemplate.getForObject("http://"+serviceName+"/index1?name="+name, String.class);
+}
+
+并实现相应的方法：
+
+private String hiError(String name) {
+	return "hi "+name+",Error!";
+}
+	
+private String hiError1() {
+	return "it is default error!";
+}
+
+2.feign加入Hystrix支持(feign本身集成了hystrix)
+
+(1)在application.xml文件中加入配置：
+
+feign.hystrix.enabled=true
+
+注：在配置文件中会提示“无法识别配置信息”，即“'feign.hystrix.enabled' is an unknown property.”，但是不需要在意，因为我们查看源码包spring-cloud-openfeign-core-2.0.0.M2.jar中的org.springframework.cloud.openfeign.FeignClientsConfiguration类会发现在HystrixFeignConfiguration方法中有@ConditionalOnProperty(name = "feign.hystrix.enabled")，所以feign.hystrix.enabled是可以使用的配置，即使我们使用的编译工具识别不了。
+
+(2)在注解@FeignClient中加入fallback=MycloudFeignServiceImpl.class，即：
+
+@FeignClient(value="mycloud-services",fallback=MycloudFeignServiceImpl.class)
+public interface MycloudFeignService{}
+
+其中MycloudFeignServiceImpl.class是当前注解@FeignClient所注释的接口MycloudFeignService的实现类。
+
+@Component
+public class MycloudFeignServiceImpl implements MycloudFeignService｛...｝
+
+需要在实现类上加入注解@Component，将实现类注入到spring中。
